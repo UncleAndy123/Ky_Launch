@@ -2,8 +2,8 @@
 <!-- Text color for the "On" pill: dark on the accent pill normally, light when
      the row is focused (pill inverts to dark). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_pressed="true" android:color="@color/kai_text" />
-    <item android:state_focused="true" android:color="@color/kai_text" />
-    <item android:state_selected="true" android:color="@color/kai_text" />
-    <item android:color="@color/kai_on_accent" />
+    <item android:state_pressed="true" android:color="?attr/flipText" />
+    <item android:state_focused="true" android:color="?attr/flipText" />
+    <item android:state_selected="true" android:color="?attr/flipText" />
+    <item android:color="?attr/flipOnAccent" />
 </selector>

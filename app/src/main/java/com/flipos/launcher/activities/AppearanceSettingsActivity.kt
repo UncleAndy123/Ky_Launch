@@ -26,6 +26,7 @@ class AppearanceSettingsActivity : BaseListActivity() {
 
         actions[ID_WALLPAPER] = { startActivity(Intent(this, WallpaperPickerActivity::class.java)) }
         actions[ID_ACCENT] = { chooseAccentColor() }
+        actions[ID_THEME] = { chooseTheme() }
         actions[ID_SHAPE] = { chooseIconShape() }
         actions[ID_PACK] = { startActivity(Intent(this, IconPackActivity::class.java)) }
         actions[ID_SIZE] = { chooseIconSize() }
@@ -84,6 +85,12 @@ class AppearanceSettingsActivity : BaseListActivity() {
                     id = ID_ACCENT,
                     title = getString(R.string.settings_accent_color),
                     trailing = getString(prefs.getAccentColor().labelRes),
+                    chevron = true,
+                ),
+                Row(
+                    id = ID_THEME,
+                    title = getString(R.string.settings_theme),
+                    trailing = getString(prefs.getThemeMode().labelRes),
                     chevron = true,
                 ),
                 Row.section(getString(R.string.sec_icons)),
@@ -160,6 +167,21 @@ class AppearanceSettingsActivity : BaseListActivity() {
             .show()
     }
 
+    private fun chooseTheme() {
+        val options = LauncherPrefs.ThemeMode.entries.toTypedArray()
+        val labels = options.map { getString(it.labelRes) }.toTypedArray()
+        val checked = options.indexOf(prefs.getThemeMode()).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_theme)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                prefs.setThemeMode(options[which])
+                Toast.makeText(this, getString(R.string.settings_theme_set, labels[which]), Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                recreate()
+            }
+            .show()
+    }
+
     private fun chooseIconShape() {
         val options = LauncherPrefs.IconShape.entries.toTypedArray()
         val labels = options.map { getString(it.labelRes) }.toTypedArray()
@@ -186,6 +208,7 @@ class AppearanceSettingsActivity : BaseListActivity() {
     companion object {
         private const val ID_WALLPAPER = "wallpaper"
         private const val ID_ACCENT = "accent"
+        private const val ID_THEME = "theme"
         private const val ID_SHAPE = "shape"
         private const val ID_PACK = "pack"
         private const val ID_SIZE = "size"

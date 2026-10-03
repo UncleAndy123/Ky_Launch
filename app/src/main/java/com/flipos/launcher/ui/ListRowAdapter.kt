@@ -10,6 +10,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.flipos.launcher.R
+import com.flipos.launcher.util.accentColor
 
 /**
  * A single list entry. Can be a normal row (leading icon, title, optional
@@ -37,6 +38,8 @@ data class Row(
     // Notification dot color shown over the leading icon, or null for none.
     // Only set by the app drawer's list view; every other screen leaves it null.
     val badgeColor: Int? = null,
+    /** True for the single row currently picked up by the app drawer's Move gesture; shows an accent-colored dot in place of [badgeColor]. */
+    val isMoving: Boolean = false,
     /** Renders as a group header instead of a selectable row. */
     val isSection: Boolean = false,
     /** Stable identity for diffing; defaults to the title. */
@@ -121,11 +124,16 @@ class ListRowAdapter(
                 }
                 else -> iconWrap.visibility = View.GONE
             }
-            if (row.badgeColor != null) {
-                notifDot.visibility = View.VISIBLE
-                notifDot.backgroundTintList = ColorStateList.valueOf(row.badgeColor)
-            } else {
-                notifDot.visibility = View.GONE
+            when {
+                row.isMoving -> {
+                    notifDot.visibility = View.VISIBLE
+                    notifDot.backgroundTintList = ColorStateList.valueOf(itemView.context.accentColor())
+                }
+                row.badgeColor != null -> {
+                    notifDot.visibility = View.VISIBLE
+                    notifDot.backgroundTintList = ColorStateList.valueOf(row.badgeColor)
+                }
+                else -> notifDot.visibility = View.GONE
             }
 
             title.text = row.title

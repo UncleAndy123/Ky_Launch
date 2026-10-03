@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Settings app-drawer/app-list icon: the same app-grid motif as
+     ic_launcher.xml (so it reads as "this launcher's settings", not the
+     system Settings app) plus a small gear badge for "settings". No
+     baked-in background - shape/background is the shared IconShapeRenderer
+     pipeline's job (icon shape + optional legacy background disc), same as
+     every other app's icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 2x2 app-grid, the same cyan as ic_launcher.xml's grid. -->
+    <path
+        android:fillColor="#1FC3F4"
+        android:pathData="M12,12h18v18h-18z" />
+    <path
+        android:fillColor="#1FC3F4"
+        android:pathData="M36,12h18v18h-18z" />
+    <path
+        android:fillColor="#1FC3F4"
+        android:pathData="M12,36h18v18h-18z" />
+    <path
+        android:fillColor="#1FC3F4"
+        android:pathData="M36,36h18v18h-18z" />
+
+    <!-- Gear badge: body (with a genuine transparent center hole, cut via
+         evenOdd rather than painted over in a background color that no
+         longer exists) + 8 teeth (rotated copies of one tooth). -->
+    <path
+        android:fillColor="#B8C2CC"
+        android:fillType="evenOdd"
+        android:pathData="M78,63 a15,15 0 1,0 0.01,0 zM78,72 a6,6 0 1,0 0.01,0 z" />
+
+    <group android:pivotX="78" android:pivotY="78" android:rotation="0">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+    <group android:pivotX="78" android:pivotY="78" android:rotation="45">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+    <group android:pivotX="78" android:pivotY="78" android:rotation="90">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+    <group android:pivotX="78" android:pivotY="78" android:rotation="135">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+    <group android:pivotX="78" android:pivotY="78" android:rotation="180">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+    <group android:pivotX="78" android:pivotY="78" android:rotation="225">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+    <group android:pivotX="78" android:pivotY="78" android:rotation="270">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+    <group android:pivotX="78" android:pivotY="78" android:rotation="315">
+        <path android:fillColor="#B8C2CC" android:pathData="M76,53h4v10h-4z" />
+    </group>
+
+</vector>

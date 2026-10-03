@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bold accent-colored background for the Home notification banner. White base
+     tinted to the user's accent color at bind time (see MainActivity), same
+     convention as bg_dpad_pod.xml / bg_rail_focus.xml, but at a much higher
+     alpha since this bar is meant to be noticeable, not subtle. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/white" />
+    <corners android:radius="14dp" />
+</shape>

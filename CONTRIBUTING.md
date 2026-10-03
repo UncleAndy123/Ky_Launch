@@ -6,7 +6,7 @@ a built APK, and covers the few project-specific conventions.
 ## Prerequisites
 
 You need two things on your machine. Everything else (notably the JDK) is
-provisioned automatically by the Gradle build.
+already whatever's running Gradle for you — see below.
 
 ### 1. Android SDK
 
@@ -37,10 +37,14 @@ macOS: `brew install --cask android-platform-tools`.
 
 ### What you do NOT need
 
-- **A specific JDK.** The build declares a Java toolchain and applies the
-  Foojay resolver, so Gradle downloads JDK 17 for compilation on its own. Do
-  not set `JAVA_HOME` or prefix Gradle commands with it. Gradle 9.6.x runs on
-  any installed JDK from 17 through 26.
+- **A specific JDK.** Compilation just runs on whichever JDK is already
+  launching Gradle for you — Android Studio's own bundled JBR when building
+  from the IDE, or whatever `JAVA_HOME`/`PATH` points at on the command
+  line. Any version 17 through 26 works; do not set `JAVA_HOME` or prefix
+  Gradle commands with it unless you're troubleshooting something else. The
+  build still always produces Java 17-level bytecode
+  (`android.compileOptions` in `app/build.gradle.kts`) no matter which of
+  those JDKs compiles it, and never reaches out to the network for a JDK.
 
 ## Building & installing
 

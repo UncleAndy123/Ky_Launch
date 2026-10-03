@@ -44,7 +44,7 @@ import kotlin.math.min
  * grid page does and only made scrolling feel choppy.
  *
  * Center/OK opens the focused app. The Options soft key (or long-press) lets
- * the user pin an app to Home, hide it, or uninstall it.
+ * the user hide it, change its icon, or uninstall it.
  */
 class AppDrawerActivity : AppCompatActivity() {
 
@@ -62,6 +62,9 @@ class AppDrawerActivity : AppCompatActivity() {
     private var listMode = false
     private var gridColumns = GRID_COLUMNS
     private var pageSize = PAGE_SIZE
+
+    /** Component key of the app currently picked up by the Move gesture (see [enterMoveMode]), or null. */
+    private var movingKey: String? = null
 
     /** The accent color applied this onCreate, so [onResume] can detect a change and [recreate]. */
     private var appliedAccentColor: LauncherPrefs.AccentColor? = null
@@ -106,6 +109,7 @@ class AppDrawerActivity : AppCompatActivity() {
             onFocusChanged = { titleView.text = it.label },
             iconSizePercent = prefs.getIconSizePercent(),
             hasNotification = ::hasNotification,
+            isMoving = { it.key == movingKey },
         )
         listAdapter = ListRowAdapter(
             onClick = { pos -> currentPageItems.getOrNull(pos)?.let { launchAppByKey(it.key) } },
@@ -204,8 +208,16 @@ class AppDrawerActivity : AppCompatActivity() {
     private fun totalPages(): Int =
         if (allApps.isEmpty()) 1 else ceil(allApps.size / pageSize.toDouble()).toInt()
 
-    /** Bind the full app list in one go - no pages, no dots, just a normal scroll. */
-    private fun bindList(focusPosition: Int? = null) {
+    /**
+     * Bind the full app list in one go - no pages, no dots, just a normal
+     * scroll. [forceRebind] forces every visible row to rebind even when its
+     * [AppInfo] content didn't change - needed during an in-progress Move,
+     * where two rows swap position but not content, which the diff-based
+     * [ListRowAdapter.submit] would otherwise treat as a no-op move and skip
+     * re-binding (only [isMoving] actually changed, and that's carried in
+     * each [Row] already so this only matters if that ever stops being true).
+     */
+    private fun bindList(focusPosition: Int? = null, forceRebind: Boolean = false) {
         currentPageItems = allApps
         listAdapter.submit(
             currentPageItems.map {
@@ -214,9 +226,11 @@ class AppDrawerActivity : AppCompatActivity() {
                     icon = it.icon,
                     keepWhiteTitle = true,
                     badgeColor = if (hasNotification(it)) NotificationDotColor.forIcon(it.key, it.icon) else null,
+                    isMoving = it.key == movingKey,
                 )
             },
         )
+        if (forceRebind) listAdapter.notifyDataSetChanged()
         pageIndicator.visibility = View.GONE
         grid.post {
             if (currentPageItems.isEmpty()) return@post
@@ -224,13 +238,22 @@ class AppDrawerActivity : AppCompatActivity() {
         }
     }
 
-    /** Swap the grid's contents to [page] and re-sync the dot indicator. */
-    private fun bindPage(page: Int, focusPosition: Int? = null) {
+    /**
+     * Swap the grid's contents to [page] and re-sync the dot indicator.
+     * [forceRebind] forces every visible icon to rebind even when its
+     * [AppInfo] content didn't change - needed during an in-progress Move,
+     * where [AppGridAdapter]'s [isMoving] flag lives outside [AppInfo] itself
+     * (unlike [ListRowAdapter]'s [Row.isMoving]), so the diff can't see it
+     * changed and would otherwise skip the rebind that shows/moves the
+     * highlight.
+     */
+    private fun bindPage(page: Int, focusPosition: Int? = null, forceRebind: Boolean = false) {
         currentPage = page
         val start = page * pageSize
         val end = min(start + pageSize, allApps.size)
         currentPageItems = if (start < end) allApps.subList(start, end) else emptyList()
         gridAdapter.submit(currentPageItems)
+        if (forceRebind) gridAdapter.notifyDataSetChanged()
 
         val pages = totalPages()
         pageIndicator.visibility = if (pages > 1) View.VISIBLE else View.GONE
@@ -361,7 +384,7 @@ class AppDrawerActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) return
         val items = mutableListOf(
             ContextItem(getString(R.string.ctx_open)) { launchAppByKey(app.key) },
-            ContextItem(getString(R.string.ctx_add_home)) { addToHome(app) },
+            ContextItem(getString(R.string.ctx_move)) { enterMoveMode(app) },
             ContextItem(getString(R.string.ctx_hide)) { hideApp(app) },
             ContextItem(getString(R.string.ctx_change_icon)) { changeIcon(app) },
         )
@@ -375,6 +398,7 @@ class AppDrawerActivity : AppCompatActivity() {
             },
         )
         items.add(ContextItem(getString(R.string.ctx_uninstall)) { uninstallApp(app) })
+        items.add(ContextItem(getString(R.string.ctx_settings)) { startActivity(Intent(this, SettingsActivity::class.java)) })
 
         val titleView = layoutInflater.inflate(R.layout.dialog_app_context_title, null).apply {
             findViewById<TextView>(R.id.dialog_title_label).text = app.label
@@ -401,20 +425,6 @@ class AppDrawerActivity : AppCompatActivity() {
         refresh()
     }
 
-    private fun addToHome(app: AppInfo) {
-        val current = prefs.getShortcuts()
-        when {
-            current.contains(app.key) ->
-                Toast.makeText(this, R.string.toast_already_on_home, Toast.LENGTH_SHORT).show()
-            current.size >= LauncherPrefs.MAX_SHORTCUTS ->
-                Toast.makeText(this, R.string.home_full, Toast.LENGTH_SHORT).show()
-            else -> {
-                prefs.addShortcut(app.key)
-                Toast.makeText(this, R.string.toast_added_to_home, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     private fun hideApp(app: AppInfo) {
         prefs.setHidden(app.key, true)
         Toast.makeText(this, getString(R.string.toast_app_hidden, app.label), Toast.LENGTH_SHORT).show()
@@ -434,9 +444,181 @@ class AppDrawerActivity : AppCompatActivity() {
         }
     }
 
+    // -------------------------------------------------------------- Move
+
+    /**
+     * Picks up [app] for the D-pad Move gesture: subsequent D-pad presses
+     * swap it with a neighbor (see [moveMovingItem]) instead of moving focus,
+     * until Center/OK commits the new position ([commitMove]) or Back/soft-
+     * left cancels ([cancelMove]) - see [onMoveKeyDown].
+     */
+    private fun enterMoveMode(app: AppInfo) {
+        movingKey = app.key
+        val focus = focusedPosition()
+        if (listMode) bindList(focusPosition = focus, forceRebind = true) else bindPage(currentPage, focusPosition = focus, forceRebind = true)
+    }
+
+    private fun exitMoveMode() {
+        movingKey = null
+    }
+
+    /** Persists the in-memory order every swap this move made already built, then exits move mode. */
+    private fun commitMove() {
+        exitMoveMode()
+        prefs.setAppOrder(allApps.map { it.key })
+        val focus = focusedPosition()
+        if (listMode) bindList(focusPosition = focus, forceRebind = true) else bindPage(currentPage, focusPosition = focus, forceRebind = true)
+    }
+
+    /** Nothing was persisted during the move, so a plain [refresh] (re-querying [AppRepository]) discards every in-memory swap. */
+    private fun cancelMove() {
+        exitMoveMode()
+        refresh()
+    }
+
+    /**
+     * Swaps the moving app's position with whichever neighbor D-pad
+     * navigation would normally move focus to - live, so the moving icon's
+     * slot follows the D-pad, crossing into an adjacent grid page (see
+     * [rowMoveTargetIndex]/[columnMoveTargetIndex]) exactly like plain
+     * navigation already does. List mode is unbounded within the full list,
+     * which has no pages to cross.
+     */
+    private fun moveMovingItem(rowDelta: Int, colDelta: Int) {
+        val key = movingKey ?: return
+        if (listMode) {
+            if (colDelta != 0) return
+            val index = allApps.indexOfFirst { it.key == key }
+            if (index < 0) return
+            val target = (index + rowDelta).coerceIn(0, allApps.size - 1)
+            if (target == index) return
+            swapAllApps(index, target)
+            bindList(focusPosition = target, forceRebind = true)
+            return
+        }
+        val localIndex = currentPageItems.indexOfFirst { it.key == key }
+        if (localIndex < 0) return
+        val globalCurrent = currentPage * pageSize + localIndex
+        val globalTarget = (if (rowDelta != 0) rowMoveTargetIndex(rowDelta) else columnMoveTargetIndex(colDelta))
+            ?.takeIf { it != globalCurrent } ?: return
+        swapAllApps(globalCurrent, globalTarget)
+        bindPage(globalTarget / pageSize, focusPosition = globalTarget % pageSize, forceRebind = true)
+    }
+
+    /**
+     * Global (allApps-indexed) swap destination for a Move row step - same
+     * column on the previous page's last row when [rowDelta] carries the
+     * moving item up past the current page's top row, same column on the
+     * next page's first row when it carries past the bottom row, otherwise
+     * just the target row on the current page. Mirrors [moveFocusByRow]'s
+     * page-crossing behavior, but returns a swap destination rather than a
+     * focus target. Null at the very first/last page (nothing to move into).
+     */
+    private fun rowMoveTargetIndex(rowDelta: Int): Int? {
+        val localIndex = currentPageItems.indexOfFirst { it.key == movingKey }
+        if (localIndex < 0) return null
+        val row = localIndex / gridColumns
+        val column = localIndex % gridColumns
+        val lastRow = (currentPageItems.size - 1) / gridColumns
+        val targetRow = row + rowDelta
+        return when {
+            targetRow < 0 -> {
+                val prevPage = currentPage - 1
+                if (prevPage < 0) return null
+                val prevCount = min(pageSize, allApps.size - prevPage * pageSize)
+                if (prevCount <= 0) return null
+                prevPage * pageSize + (lastRowStartForPage(prevPage) + column).coerceAtMost(prevCount - 1)
+            }
+            targetRow > lastRow -> {
+                val nextPage = currentPage + 1
+                if (nextPage >= totalPages()) return null
+                val nextStart = nextPage * pageSize
+                val nextCount = min(pageSize, allApps.size - nextStart)
+                if (nextCount <= 0) return null
+                nextStart + column.coerceAtMost(nextCount - 1)
+            }
+            else -> currentPage * pageSize + (targetRow * gridColumns + column).coerceAtMost(currentPageItems.size - 1)
+        }
+    }
+
+    /**
+     * Global (allApps-indexed) swap destination for a Move column step - the
+     * previous page's last item when [delta] carries the moving item left
+     * off the current page's start, the next page's first item when it
+     * carries right off the end, otherwise just the target cell on the
+     * current page. Mirrors [moveFocusByColumn]'s page-crossing behavior,
+     * but returns a swap destination rather than a focus target. Null at the
+     * very first/last item overall.
+     */
+    private fun columnMoveTargetIndex(delta: Int): Int? {
+        val localIndex = currentPageItems.indexOfFirst { it.key == movingKey }
+        if (localIndex < 0) return null
+        val target = localIndex + delta
+        return when {
+            target < 0 -> {
+                val prevPage = currentPage - 1
+                if (prevPage < 0) return null
+                val prevCount = min(pageSize, allApps.size - prevPage * pageSize)
+                if (prevCount <= 0) return null
+                prevPage * pageSize + (prevCount - 1)
+            }
+            target >= currentPageItems.size -> {
+                val nextPage = currentPage + 1
+                if (nextPage >= totalPages()) return null
+                val nextStart = nextPage * pageSize
+                if (min(pageSize, allApps.size - nextStart) <= 0) return null
+                nextStart
+            }
+            else -> currentPage * pageSize + target
+        }
+    }
+
+    private fun swapAllApps(indexA: Int, indexB: Int) {
+        val mutable = allApps.toMutableList()
+        val tmp = mutable[indexA]
+        mutable[indexA] = mutable[indexB]
+        mutable[indexB] = tmp
+        allApps = mutable
+    }
+
     // ----------------------------------------------------------- Key handling
 
+    /**
+     * A focused, clickable item view's own default [View.onKeyDown] consumes
+     * KEYCODE_DPAD_CENTER/ENTER itself (to drive its own performClick()) before
+     * the event would ever reach [onKeyDown] below - unlike the D-pad
+     * direction keys, which this view hierarchy leaves unconsumed and which
+     * do reach [onKeyDown] normally. During an in-progress Move that would
+     * launch the focused app instead of committing the move, so Center/Enter
+     * is intercepted here first, exactly like [MainActivity] already does for
+     * its own directional keys.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (movingKey != null &&
+            event.action == KeyEvent.ACTION_DOWN &&
+            (event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || event.keyCode == KeyEvent.KEYCODE_ENTER)
+        ) {
+            return onMoveKeyDown(event.keyCode, event)
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    /** Intercepts D-pad/Center/Back for the in-progress Move instead of their normal navigation/open/finish behavior. */
+    private fun onMoveKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (event.repeatCount > 0) return true
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_DOWN -> moveMovingItem(1, 0)
+            KeyEvent.KEYCODE_DPAD_UP -> moveMovingItem(-1, 0)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> moveMovingItem(0, 1)
+            KeyEvent.KEYCODE_DPAD_LEFT -> moveMovingItem(0, -1)
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> commitMove()
+            KeyEvent.KEYCODE_SOFT_LEFT, KeyEvent.KEYCODE_BACK -> cancelMove()
+        }
+        return true
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (movingKey != null) return onMoveKeyDown(keyCode, event)
         // Guard auto-repeat only for keys that must act once per press (launching
         // an app, soft-key actions). Movement keys intentionally honor auto-repeat
         // so holding the D-pad rolls through the grid/list and picks up speed.

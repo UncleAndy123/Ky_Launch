@@ -9,6 +9,17 @@
     <color name="kai_on_accent">#08222B</color>
     <color name="kai_overlay">#B3000000</color>
 
+    <!-- Light theme counterparts for the neutral palette above (see
+         Theme.FlipLauncher.Light in themes.xml). kai_on_accent is reused
+         unchanged in both modes - it exists for contrast against an
+         accent-colored fill, which doesn't change with the app's own
+         background. -->
+    <color name="kai_bg_light">#FFFFFF</color>
+    <color name="kai_softkey_bg_light">#EDEFF3</color>
+    <color name="kai_text_light">#14171C</color>
+    <color name="kai_text_secondary_light">#5B6270</color>
+    <color name="kai_divider_light">#DCDFE4</color>
+
     <!-- Rainbow accent color presets, selectable in Settings. All kept light
          enough that kai_on_accent (a dark navy) stays legible on top of them. -->
     <color name="kai_accent_red">#FF5C5C</color>

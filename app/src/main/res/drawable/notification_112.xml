@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Notices app-drawer/app-list icon: a large orange bell (the app's
+     existing "Orange" accent color, @color/kai_accent_orange) on a
+     transparent canvas so it reads clearly against the grid instead of the
+     default-tinted glyph ic_notification.xml is on its own. No baked-in
+     background - shape/background is the shared IconShapeRenderer
+     pipeline's job (icon shape + optional legacy background disc), same as
+     every other app's icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ic_notification.xml's bell path (24x24 viewport), scaled 3x and
+         centered: (108 - 24*3) / 2 = 18 on each axis. -->
+    <group
+        android:translateX="18"
+        android:translateY="18"
+        android:scaleX="3"
+        android:scaleY="3">
+        <path
+            android:fillColor="#FFA94D"
+            android:pathData="M12,22c1.1,0 2,-0.9 2,-2h-4C10,21.1 10.9,22 12,22zM18,16v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5S10.5,3.17 10.5,4v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z" />
+    </group>
+
+</vector>

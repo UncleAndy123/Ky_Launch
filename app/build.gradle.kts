@@ -31,15 +31,13 @@ android {
     }
 
     compileOptions {
+        // With AGP 9's built-in Kotlin support, this alone also pins Kotlin's
+        // own jvmTarget to 17 (no separate `kotlin { jvmToolchain(17) }` or
+        // kotlinOptions.jvmTarget needed) - compilation still runs on
+        // whichever JDK launched Gradle, it just emits 17-level bytecode.
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-}
-
-kotlin {
-    // Pins the compile JDK to 17 and lets Gradle auto-provision it via the
-    // Foojay resolver, so the build works regardless of the machine's default JDK.
-    jvmToolchain(17)
 }
 
 dependencies {

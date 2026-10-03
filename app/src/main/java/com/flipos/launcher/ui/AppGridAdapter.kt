@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.flipos.launcher.R
 import com.flipos.launcher.data.AppInfo
 import com.flipos.launcher.data.NotificationDotColor
+import com.flipos.launcher.util.accentColor
 
 /** Grid of apps used by the app drawer. Icons only — [onFocusChanged] lets the
  * screen mirror the focused app's name in its title bar in place of labels. */
@@ -19,6 +20,8 @@ class AppGridAdapter(
     private val onFocusChanged: (AppInfo) -> Unit = {},
     iconSizePercent: Int = 100,
     private val hasNotification: (AppInfo) -> Boolean = { false },
+    /** True for the single item currently picked up by the Move gesture (see AppDrawerActivity). */
+    private val isMoving: (AppInfo) -> Boolean = { false },
 ) : RecyclerView.Adapter<AppGridAdapter.VH>() {
 
     private val items = ArrayList<AppInfo>()
@@ -80,7 +83,9 @@ class AppGridAdapter(
         }
 
         fun bind(app: AppInfo) {
-            highlight.setColor(NotificationDotColor.forIcon(app.key, app.icon))
+            highlight.setColor(
+                if (isMoving(app)) itemView.context.accentColor() else NotificationDotColor.forIcon(app.key, app.icon),
+            )
             val density = Resources.getSystem().displayMetrics.density
             // Before the grid's first layout pass, gridWidthPx/gridHeightPx are
             // still 0 - fall back to a fixed size so icons aren't briefly

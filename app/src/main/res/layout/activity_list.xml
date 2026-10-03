@@ -10,7 +10,7 @@
         android:id="@+id/title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/kai_softkey_bg"
+        android:background="?attr/flipSoftkeyBg"
         android:gravity="center"
         android:paddingTop="@dimen/space_s"
         android:paddingBottom="@dimen/space_s"
@@ -40,7 +40,7 @@
             android:gravity="center"
             android:paddingStart="24dp"
             android:paddingEnd="24dp"
-            android:textColor="@color/kai_text_secondary"
+            android:textColor="?attr/flipTextSecondary"
             android:textSize="@dimen/softkey_text"
             android:visibility="gone" />
     </FrameLayout>

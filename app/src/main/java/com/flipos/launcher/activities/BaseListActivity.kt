@@ -25,17 +25,31 @@ abstract class BaseListActivity : AppCompatActivity() {
     /** The accent color applied this onCreate, so [onResume] can detect a change and [recreate]. */
     private var appliedAccentColor: LauncherPrefs.AccentColor? = null
 
+    /** The theme mode applied this onCreate, so [onResume] can detect a change and [recreate]. */
+    private var appliedThemeMode: LauncherPrefs.ThemeMode? = null
+
     /**
-     * True once [onResume] has triggered a [recreate] for an accent change.
-     * Subclasses overriding [onResume] should `return` early when this is set so
-     * they don't do resume work (reloads, focus) on the dying instance.
+     * True once [onResume] has triggered a [recreate] for an accent or theme
+     * mode change. Subclasses overriding [onResume] should `return` early
+     * when this is set so they don't do resume work (reloads, focus) on the
+     * dying instance.
      */
     protected var isRecreatingForAccent = false
         private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         val prefs = LauncherPrefs(this)
+        // Must happen before super.onCreate(): unlike the accent-color
+        // overlay below (which merges one attribute onto whatever theme is
+        // already resolved), a real light/dark switch needs the
+        // AppCompat.Light family itself active before AppCompatActivity's
+        // own onCreate resolves it - so AlertDialog's own default chrome
+        // (background, buttons), not just this app's own content, renders
+        // light too.
+        val themeMode = prefs.getThemeMode()
+        appliedThemeMode = themeMode
+        if (themeMode.themeRes != 0) setTheme(themeMode.themeRes)
+        super.onCreate(savedInstanceState)
         val accent = prefs.getAccentColor()
         appliedAccentColor = accent
         if (accent.themeOverlayRes != 0) theme.applyStyle(accent.themeOverlayRes, true)
@@ -54,9 +68,11 @@ abstract class BaseListActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // The accent color may have changed in Settings while this activity was
-        // backgrounded; theme overlays only apply at onCreate, so recreate to pick it up.
-        if (LauncherPrefs(this).getAccentColor() != appliedAccentColor) {
+        // The accent color or theme mode may have changed in Settings while
+        // this activity was backgrounded; both only apply at onCreate, so
+        // recreate to pick up either.
+        val prefs = LauncherPrefs(this)
+        if (prefs.getAccentColor() != appliedAccentColor || prefs.getThemeMode() != appliedThemeMode) {
             isRecreatingForAccent = true
             recreate()
         }

@@ -1,7 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base dark KaiOS-style theme used by settings/drawer screens. -->
+    <!-- Base dark KaiOS-style theme used by settings/drawer screens. The
+         flip* items declare this theme's neutral palette as custom
+         attributes (see attrs.xml) so shared layouts/drawables/color
+         selectors can resolve differently per activity instead of always
+         pointing at a literal dark color - see Theme.FlipLauncher.Light
+         below, which overrides only these six. -->
     <style name="Theme.FlipLauncher" parent="Theme.AppCompat.NoActionBar">
+        <item name="flipBg">@color/kai_bg</item>
+        <item name="flipSoftkeyBg">@color/kai_softkey_bg</item>
+        <item name="flipText">@color/kai_text</item>
+        <item name="flipTextSecondary">@color/kai_text_secondary</item>
+        <item name="flipDivider">@color/kai_divider</item>
+        <item name="flipOnAccent">@color/kai_on_accent</item>
         <item name="android:windowBackground">@color/kai_bg</item>
         <item name="android:colorBackground">@color/kai_bg</item>
         <item name="android:statusBarColor">@color/kai_softkey_bg</item>
@@ -9,6 +20,33 @@
         <item name="colorAccent">@color/kai_accent</item>
         <item name="android:textColorPrimary">@color/kai_text</item>
         <item name="android:textColorSecondary">@color/kai_text_secondary</item>
+        <item name="android:windowAnimationStyle">@style/Animation.Flip.Activity</item>
+    </style>
+
+    <!-- Light counterpart of Theme.FlipLauncher, applied via Activity.setTheme()
+         (not a runtime overlay - see LauncherPrefs.ThemeMode) so the
+         AppCompat.Light family itself is what's active, not just a few
+         attributes layered on the dark family. That's what makes AlertDialog's
+         own default chrome (background, buttons) render light too, not just
+         the content this app draws itself. Only applied to the "flat" list/
+         settings screens (BaseListActivity, IconPickerActivity) - Home and the
+         App Drawer always stay on the dark Theme.FlipLauncher.Home/.Drawer,
+         since their wallpaper scrim is about legibility over an arbitrary
+         photo, not a light/dark palette choice. -->
+    <style name="Theme.FlipLauncher.Light" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="flipBg">@color/kai_bg_light</item>
+        <item name="flipSoftkeyBg">@color/kai_softkey_bg_light</item>
+        <item name="flipText">@color/kai_text_light</item>
+        <item name="flipTextSecondary">@color/kai_text_secondary_light</item>
+        <item name="flipDivider">@color/kai_divider_light</item>
+        <item name="flipOnAccent">@color/kai_on_accent</item>
+        <item name="android:windowBackground">@color/kai_bg_light</item>
+        <item name="android:colorBackground">@color/kai_bg_light</item>
+        <item name="android:statusBarColor">@color/kai_softkey_bg_light</item>
+        <item name="android:navigationBarColor">@color/kai_softkey_bg_light</item>
+        <item name="colorAccent">@color/kai_accent</item>
+        <item name="android:textColorPrimary">@color/kai_text_light</item>
+        <item name="android:textColorSecondary">@color/kai_text_secondary_light</item>
         <item name="android:windowAnimationStyle">@style/Animation.Flip.Activity</item>
     </style>
 

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Custom theme attributes for the neutral (non-accent) palette, so a
+     handful of shared layouts/drawables/color-selectors can resolve
+     differently per activity instead of always pointing at the same
+     literal dark color - see Theme.FlipLauncher / Theme.FlipLauncher.Light
+     in themes.xml. -->
+<resources>
+    <attr name="flipBg" format="color" />
+    <attr name="flipSoftkeyBg" format="color" />
+    <attr name="flipText" format="color" />
+    <attr name="flipTextSecondary" format="color" />
+    <attr name="flipDivider" format="color" />
+    <attr name="flipOnAccent" format="color" />
+</resources>

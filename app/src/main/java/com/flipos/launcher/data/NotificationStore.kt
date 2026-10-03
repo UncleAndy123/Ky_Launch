@@ -13,6 +13,7 @@ data class NoticeItem(
     val text: String,
     val postTime: Long,
     val icon: Drawable?,
+    val kind: NotificationKind,
 )
 
 /**
@@ -44,6 +45,17 @@ object NotificationStore {
     fun update(items: List<NoticeItem>) {
         this.items = items
         notifyListeners()
+    }
+
+    /**
+     * Drops any pending items for [packageName] - called by
+     * [com.flipos.launcher.service.NotificationAccessibilityService] as it
+     * tracks which app is currently in the foreground, both when leaving the
+     * previous one and entering the next.
+     */
+    fun removeItemsForPackage(packageName: String) {
+        val filtered = items.filterNot { it.packageName == packageName }
+        if (filtered.size != items.size) update(filtered)
     }
 
     private fun notifyListeners() {

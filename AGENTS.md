@@ -13,12 +13,18 @@ person's laptop.
   ./gradlew :app:assembleDebug
   ```
   Output: `app/build/outputs/apk/debug/app-debug.apk`.
-- **JDK is auto-provisioned.** The build declares a Java toolchain
-  (`kotlin { jvmToolchain(17) }` in `app/build.gradle.kts`) and applies the
-  Foojay resolver in `settings.gradle.kts`, so Gradle downloads/selects JDK 17
-  for compilation regardless of the machine's default JDK. There is no need to
-  set `JAVA_HOME` or prefix Gradle commands. Gradle itself (9.6.x) runs on any
-  JDK from 17 to 26.
+- **No specific JDK is required.** Compilation runs on whichever JDK launches
+  Gradle (Android Studio's own bundled JBR when building from the IDE, or
+  `JAVA_HOME`/`PATH` on the command line) — any version 17 through 26. The
+  app's `android.compileOptions.sourceCompatibility`/`targetCompatibility`
+  (`app/build.gradle.kts`) pin the compiled bytecode to Java 17 regardless of
+  which of those JDKs actually runs the compiler; with AGP 9's built-in
+  Kotlin support that alone also pins Kotlin's own `jvmTarget`, so there's no
+  separate `jvmToolchain(...)` declaration to satisfy. `gradle.properties`
+  also disables toolchain auto-download
+  (`org.gradle.java.installations.auto-download=false`) as defense in depth,
+  so nothing here ever requires reaching `api.foojay.io` — important behind
+  proxies/VPNs that break TLS to it.
 - **Android SDK is required** and is the one thing not auto-provisioned. Point
   the build at an SDK either via `local.properties` (`sdk.dir=/path/to/sdk`,
   gitignored) or the `ANDROID_HOME` environment variable. You need
@@ -47,6 +53,23 @@ person's laptop.
   state (stale/non-monotonic). Prefer `exec-out screencap -p` with ~0.5-0.8s
   settle time after the triggering input, or cross-check
   `dumpsys window | grep mCurrentFocus` for the foregrounded Activity.
+- **Notification listener access is non-functional on Kyocera Android 9+
+  builds** (confirmed on the E4810 and E4811). `Settings.Secure` and
+  `adb shell cmd notification allow_listener` both appear to succeed - our
+  component shows up in `settings get secure enabled_notification_listeners`
+  - but `adb shell dumpsys notification | grep -i listener` shows the
+  "Allowed"/"Live" listener registry never actually includes us, with zero
+  log trace even during an explicit grant attempt; only the OEM's own two
+  listener components (`jp.kyocera.server.sublcd.NotificationListener`,
+  `jp.kyocera.kyocerahome.notification.NotificationListener`) ever bind. The
+  same app code works fine on the older Kyocera 4610 (Android 7), so this is
+  a platform-level restriction on the newer device lineage, not a bug in our
+  manifest/service/grant flow - don't re-diagnose it from scratch.
+  `service/NotificationAccessibilityService.kt` is the fallback (a separate
+  OS subsystem, `AccessibilityService`'s notification events, not gated by
+  the same allowlist) - it only feeds the Home banner, not Notices/icon
+  dots, since accessibility has no "list active notifications" or removal
+  event.
 
 ## Project structure
 

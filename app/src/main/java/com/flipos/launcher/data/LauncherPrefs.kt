@@ -4,12 +4,9 @@ import android.content.Context
 import com.flipos.launcher.R
 
 /**
- * Persists the two pieces of user customization this launcher supports:
- *  - the set of hidden app keys, and
- *  - an ordered list of home-screen shortcut app keys (max 9, mapped to keys 1-9).
- *
- * Shortcuts are stored as a compact ordered list (newline-joined keys) so the
- * left rail shows them gap-free, top to bottom.
+ * Persists the launcher's user customization: hidden app keys, per-physical-key
+ * app bindings (soft keys, MENU, BACK, D-pad, Camera), speed
+ * dial numbers, and appearance/notification preferences.
  */
 class LauncherPrefs(context: Context) {
 
@@ -30,47 +27,6 @@ class LauncherPrefs(context: Context) {
         prefs.edit().putStringSet(KEY_HIDDEN, set).apply()
     }
 
-    // ------------------------------------------------------------- Shortcuts
-
-    /** Ordered list of shortcut app keys (never longer than [MAX_SHORTCUTS]). */
-    fun getShortcuts(): MutableList<String> {
-        val raw = prefs.getString(KEY_SHORTCUTS, "").orEmpty()
-        if (raw.isEmpty()) return mutableListOf()
-        return raw.split('\n').filter { it.isNotEmpty() }.toMutableList()
-    }
-
-    fun setShortcuts(list: List<String>) {
-        prefs.edit().putString(KEY_SHORTCUTS, list.joinToString("\n")).apply()
-    }
-
-    /** Append a shortcut. Returns false if Home is full or the app is already pinned. */
-    fun addShortcut(key: String): Boolean {
-        val list = getShortcuts()
-        if (list.size >= MAX_SHORTCUTS || list.contains(key)) return false
-        list.add(key)
-        setShortcuts(list)
-        return true
-    }
-
-    /** Replace the shortcut at [index], or append when [index] == size. */
-    fun setShortcutAt(index: Int, key: String) {
-        val list = getShortcuts()
-        when {
-            index in list.indices -> list[index] = key
-            index == list.size && list.size < MAX_SHORTCUTS -> list.add(key)
-            else -> return
-        }
-        setShortcuts(list)
-    }
-
-    fun removeShortcutAt(index: Int) {
-        val list = getShortcuts()
-        if (index in list.indices) {
-            list.removeAt(index)
-            setShortcuts(list)
-        }
-    }
-
     // ------------------------------------------------------- Back long-press
 
     /** App key launched on long-pressing Back, or null if unconfigured. */
@@ -79,6 +35,37 @@ class LauncherPrefs(context: Context) {
     fun setBackLongPressApp(key: String?) {
         prefs.edit().putString(KEY_BACK_LONGPRESS_APP, key).apply()
     }
+
+    // -------------------------------------------------------- Menu long-press
+
+    /** App key launched on long-pressing MENU, or null if unconfigured. */
+    fun getMenuKeyApp(): String? = prefs.getString(KEY_MENU_KEY_APP, null)
+
+    fun setMenuKeyApp(key: String?) {
+        prefs.edit().putString(KEY_MENU_KEY_APP, key).apply()
+    }
+
+    // --------------------------------------------- D-pad / Camera shortcuts
+
+    /** App key launched by pressing D-pad Up on Home, or null if unconfigured. */
+    fun getDpadUpApp(): String? = prefs.getString(KEY_DPAD_UP_APP, null)
+    fun setDpadUpApp(key: String?) = prefs.edit().putString(KEY_DPAD_UP_APP, key).apply()
+
+    /** App key launched by pressing D-pad Down on Home, or null if unconfigured. */
+    fun getDpadDownApp(): String? = prefs.getString(KEY_DPAD_DOWN_APP, null)
+    fun setDpadDownApp(key: String?) = prefs.edit().putString(KEY_DPAD_DOWN_APP, key).apply()
+
+    /** App key launched by pressing D-pad Left on Home, or null if unconfigured. */
+    fun getDpadLeftApp(): String? = prefs.getString(KEY_DPAD_LEFT_APP, null)
+    fun setDpadLeftApp(key: String?) = prefs.edit().putString(KEY_DPAD_LEFT_APP, key).apply()
+
+    /** App key launched by pressing D-pad Right on Home, or null if unconfigured. */
+    fun getDpadRightApp(): String? = prefs.getString(KEY_DPAD_RIGHT_APP, null)
+    fun setDpadRightApp(key: String?) = prefs.edit().putString(KEY_DPAD_RIGHT_APP, key).apply()
+
+    /** App key launched by pressing the Camera button on Home, or null if unconfigured. */
+    fun getCameraKeyApp(): String? = prefs.getString(KEY_CAMERA_KEY_APP, null)
+    fun setCameraKeyApp(key: String?) = prefs.edit().putString(KEY_CAMERA_KEY_APP, key).apply()
 
     // ---------------------------------------------------------- Icon size
 
@@ -111,10 +98,66 @@ class LauncherPrefs(context: Context) {
         prefs.edit().putString(KEY_LEFT_KEY_APP, key).apply()
     }
 
+    // ----------------------------------------------------------- App order
+
+    /**
+     * The user's custom app-grid ordering, as a list of component keys - apps
+     * not in this list simply fall alphabetically after the ones that are
+     * (see [AppRepository.getAllApps]). Empty until the app grid's one-time
+     * seeding runs (or the user reorders manually), never afterward.
+     */
+    fun getAppOrder(): List<String> {
+        val raw = prefs.getString(KEY_APP_ORDER, null) ?: return emptyList()
+        return raw.split(APP_ORDER_SEPARATOR).filter { it.isNotEmpty() }
+    }
+
+    fun setAppOrder(order: List<String>) {
+        prefs.edit().putString(KEY_APP_ORDER, order.joinToString(APP_ORDER_SEPARATOR)).apply()
+    }
+
+    /** Whether the one-time app-order seeding ([AppRepository]) has already run. */
+    fun isAppOrderSeeded(): Boolean = prefs.getBoolean(KEY_APP_ORDER_SEEDED, false)
+
+    fun setAppOrderSeeded() {
+        prefs.edit().putBoolean(KEY_APP_ORDER_SEEDED, true).apply()
+    }
+
+    /**
+     * Whether the one-time correction that swaps our own Settings hub for the
+     * real system Settings app in an already-seeded order ([AppRepository])
+     * has already run.
+     */
+    fun isSettingsSeedFixed(): Boolean = prefs.getBoolean(KEY_SETTINGS_SEED_FIXED, false)
+
+    fun setSettingsSeedFixed() {
+        prefs.edit().putBoolean(KEY_SETTINGS_SEED_FIXED, true).apply()
+    }
+
+    /**
+     * Whether the one-time pass that applies our own colorful built-in
+     * icons ([BuiltInIcons]) to a handful of common apps ([AppRepository])
+     * has already run.
+     */
+    fun isBuiltInIconsApplied(): Boolean = prefs.getBoolean(KEY_BUILT_IN_ICONS_APPLIED, false)
+
+    fun setBuiltInIconsApplied() {
+        prefs.edit().putBoolean(KEY_BUILT_IN_ICONS_APPLIED, true).apply()
+    }
+
+    /**
+     * Whether the one-time pass that hides every app not on a fixed
+     * whitelist ([AppRepository]) has already run.
+     */
+    fun isUnlistedAppsHidden(): Boolean = prefs.getBoolean(KEY_UNLISTED_APPS_HIDDEN, false)
+
+    fun setUnlistedAppsHidden() {
+        prefs.edit().putBoolean(KEY_UNLISTED_APPS_HIDDEN, true).apply()
+    }
+
     // ----------------------------------------------------- App drawer layout
 
     /** Whether the app drawer shows a single-column list instead of an icon grid. */
-    fun isDrawerListViewEnabled(): Boolean = prefs.getBoolean(KEY_DRAWER_LIST_VIEW, false)
+    fun isDrawerListViewEnabled(): Boolean = prefs.getBoolean(KEY_DRAWER_LIST_VIEW, true)
 
     fun setDrawerListViewEnabled(enabled: Boolean) =
         prefs.edit().putBoolean(KEY_DRAWER_LIST_VIEW, enabled).apply()
@@ -127,12 +170,36 @@ class LauncherPrefs(context: Context) {
     fun isMessageBadgeEnabled(): Boolean = prefs.getBoolean(KEY_BADGE_MESSAGES, true)
     fun setMessageBadgeEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BADGE_MESSAGES, enabled).apply()
 
-    fun isOtherBadgeEnabled(): Boolean = prefs.getBoolean(KEY_BADGE_OTHER, true)
+    fun isOtherBadgeEnabled(): Boolean = prefs.getBoolean(KEY_BADGE_OTHER, false)
     fun setOtherBadgeEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BADGE_OTHER, enabled).apply()
 
     /** Whether app icons in the drawer/Home show a small notification dot. */
     fun isIconNotificationDotEnabled(): Boolean = prefs.getBoolean(KEY_BADGE_ICON_DOT, true)
     fun setIconNotificationDotEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BADGE_ICON_DOT, enabled).apply()
+
+    /** Whether the Home notification banner hides message text, keeping only the app name. */
+    fun isNotificationTextHidden(): Boolean = prefs.getBoolean(KEY_NOTIF_TEXT_HIDDEN, false)
+    fun setNotificationTextHidden(hidden: Boolean) = prefs.edit().putBoolean(KEY_NOTIF_TEXT_HIDDEN, hidden).apply()
+
+    /** Whether notifications of [kind] appear in the Home banner - shared by the banner and [com.flipos.launcher.util.ReadAloud]. */
+    fun isShownOnHome(kind: NotificationKind): Boolean = when (kind) {
+        NotificationKind.CALL -> isCallBadgeEnabled()
+        NotificationKind.MESSAGE -> isMessageBadgeEnabled()
+        NotificationKind.OTHER -> isOtherBadgeEnabled()
+    }
+
+    // ------------------------------------------------------------- Read aloud
+
+    /** When the Home banner's message is spoken aloud: one of [READ_ALOUD_NEVER]/[READ_ALOUD_ALWAYS]/[READ_ALOUD_BLUETOOTH]. */
+    fun getReadAloudMode(): String = prefs.getString(KEY_READ_ALOUD_MODE, READ_ALOUD_NEVER) ?: READ_ALOUD_NEVER
+    fun setReadAloudMode(mode: String) = prefs.edit().putString(KEY_READ_ALOUD_MODE, mode).apply()
+
+    /** The TTS engine voice name to read with, or null for the engine's default. */
+    fun getReadAloudVoice(): String? = prefs.getString(KEY_READ_ALOUD_VOICE, null)
+    fun setReadAloudVoice(name: String?) = prefs.edit().putString(KEY_READ_ALOUD_VOICE, name).apply()
+
+    fun getReadAloudRate(): Float = prefs.getFloat(KEY_READ_ALOUD_RATE, 1.0f)
+    fun setReadAloudRate(rate: Float) = prefs.edit().putFloat(KEY_READ_ALOUD_RATE, rate).apply()
 
     // ------------------------------------------------------------- Icon packs
 
@@ -191,6 +258,18 @@ class LauncherPrefs(context: Context) {
         prefs.edit().putString(KEY_ACCENT_COLOR, color.key).apply()
     }
 
+    // --------------------------------------------------------------- Theme
+
+    /** The user's chosen theme mode, or [ThemeMode.DARK] (the original KaiOS look) if unset. */
+    fun getThemeMode(): ThemeMode {
+        val stored = prefs.getString(KEY_THEME_MODE, null) ?: return ThemeMode.DARK
+        return ThemeMode.entries.find { it.key == stored } ?: ThemeMode.DARK
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        prefs.edit().putString(KEY_THEME_MODE, mode.key).apply()
+    }
+
     // --------------------------------------------------------- Icon wrapping
 
     /** The shape every wrapped icon is masked into, launcher-wide. */
@@ -205,7 +284,7 @@ class LauncherPrefs(context: Context) {
     }
 
     /** Whether non-adaptive icons get a pale color-matched background, or sit on a transparent one. */
-    fun isLegacyIconBackgroundEnabled(): Boolean = prefs.getBoolean(KEY_LEGACY_ICON_BG, true)
+    fun isLegacyIconBackgroundEnabled(): Boolean = prefs.getBoolean(KEY_LEGACY_ICON_BG, false)
 
     fun setLegacyIconBackgroundEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_LEGACY_ICON_BG, enabled).apply()
@@ -259,9 +338,37 @@ class LauncherPrefs(context: Context) {
         VIOLET("violet", R.string.accent_color_violet, R.style.ThemeOverlay_FlipLauncher_Accent_Violet),
     }
 
+    /**
+     * Light vs dark base theme for the "flat" list/settings screens (see
+     * [com.flipos.launcher.activities.BaseListActivity]) - Home and the App
+     * Drawer are unaffected, always dark, since their wallpaper scrim is
+     * about legibility over an arbitrary photo, not a light/dark choice.
+     * [themeRes] is a full theme (via `Activity.setTheme()`), not a runtime
+     * overlay like [AccentColor.themeOverlayRes] - a real AlertDialog needs
+     * the AppCompat.Light family itself to render its own chrome light too.
+     */
+    enum class ThemeMode(val key: String, val labelRes: Int, val themeRes: Int) {
+        DARK("dark", R.string.theme_mode_dark, 0),
+        LIGHT("light", R.string.theme_mode_light, R.style.Theme_FlipLauncher_Light),
+    }
+
     companion object {
-        /** Maximum number of home shortcuts (mapped to keys 1..9). */
-        const val MAX_SHORTCUTS = 9
+        /**
+         * This device's actual Camera button reports this keyCode instead of the
+         * standard [android.view.KeyEvent.KEYCODE_CAMERA] (27) - treated as the
+         * same logical key everywhere Camera is handled.
+         */
+        const val KEYCODE_CAMERA_ALT = 133
+
+        /**
+         * The E4610's Camera button reports this keyCode instead - a second,
+         * device-specific alternate alongside [KEYCODE_CAMERA_ALT].
+         */
+        const val KEYCODE_CAMERA_ALT2 = 288
+
+        const val READ_ALOUD_NEVER = "never"
+        const val READ_ALOUD_ALWAYS = "always"
+        const val READ_ALOUD_BLUETOOTH = "bluetooth"
 
         /** Default icon size: exactly fills a 3x3 grid with no scrolling. */
         const val DEFAULT_ICON_SIZE_PERCENT = 100
@@ -272,8 +379,13 @@ class LauncherPrefs(context: Context) {
 
         private const val PREFS_NAME = "flip_launcher_prefs"
         private const val KEY_HIDDEN = "hidden_apps"
-        private const val KEY_SHORTCUTS = "home_shortcuts"
         private const val KEY_BACK_LONGPRESS_APP = "back_longpress_app"
+        private const val KEY_MENU_KEY_APP = "menu_key_app"
+        private const val KEY_DPAD_UP_APP = "dpad_up_app"
+        private const val KEY_DPAD_DOWN_APP = "dpad_down_app"
+        private const val KEY_DPAD_LEFT_APP = "dpad_left_app"
+        private const val KEY_DPAD_RIGHT_APP = "dpad_right_app"
+        private const val KEY_CAMERA_KEY_APP = "camera_key_app"
         private const val KEY_ICON_SIZE_PERCENT = "icon_size_percent"
         private const val KEY_RIGHT_KEY_APP = "right_key_app"
         private const val KEY_LEFT_KEY_APP = "left_key_app"
@@ -281,14 +393,25 @@ class LauncherPrefs(context: Context) {
         private const val KEY_BADGE_MESSAGES = "badge_messages"
         private const val KEY_BADGE_OTHER = "badge_other"
         private const val KEY_BADGE_ICON_DOT = "badge_icon_dot"
+        private const val KEY_NOTIF_TEXT_HIDDEN = "notif_text_hidden"
+        private const val KEY_READ_ALOUD_MODE = "read_aloud_mode"
+        private const val KEY_READ_ALOUD_VOICE = "read_aloud_voice"
+        private const val KEY_READ_ALOUD_RATE = "read_aloud_rate"
         private const val KEY_ACTIVE_ICON_PACK = "active_icon_pack"
         private const val KEY_DRAWER_LIST_VIEW = "drawer_list_view"
         private const val KEY_ICON_OVERRIDE_PREFIX = "icon_override_"
         private const val KEY_ACCENT_COLOR = "accent_color"
+        private const val KEY_THEME_MODE = "theme_mode"
         private const val ICON_OVERRIDE_SEPARATOR = "::"
         private const val KEY_ICON_SHAPE = "icon_shape"
         private const val KEY_LEGACY_ICON_BG = "legacy_icon_background"
         private const val KEY_WRAP_DISABLED = "wrap_disabled_apps"
         private const val KEY_ANIMATIONS = "animations_enabled"
+        private const val KEY_APP_ORDER = "app_order"
+        private const val KEY_APP_ORDER_SEEDED = "app_order_seeded"
+        private const val KEY_SETTINGS_SEED_FIXED = "app_order_settings_seed_fixed"
+        private const val KEY_BUILT_IN_ICONS_APPLIED = "built_in_icons_applied"
+        private const val KEY_UNLISTED_APPS_HIDDEN = "unlisted_apps_hidden"
+        private const val APP_ORDER_SEPARATOR = "\n"
     }
 }

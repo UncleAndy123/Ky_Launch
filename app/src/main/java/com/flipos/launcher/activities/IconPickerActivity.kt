@@ -34,6 +34,12 @@ class IconPickerActivity : AppCompatActivity() {
     private val loader = BackgroundLoader()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        prefs = LauncherPrefs(this)
+        // Must happen before super.onCreate() - see BaseListActivity's
+        // identical setTheme() call for why a real theme switch (not just
+        // an attribute overlay) is needed for AlertDialog's own chrome to
+        // render light too.
+        prefs.getThemeMode().let { if (it.themeRes != 0) setTheme(it.themeRes) }
         super.onCreate(savedInstanceState)
         val key = intent.getStringExtra(EXTRA_APP_KEY)
         if (key == null) {
@@ -41,7 +47,6 @@ class IconPickerActivity : AppCompatActivity() {
             return
         }
         appKey = key
-        prefs = LauncherPrefs(this)
         prefs.getAccentColor().let { if (it.themeOverlayRes != 0) theme.applyStyle(it.themeOverlayRes, true) }
         if (!prefs.isAnimationsEnabled()) {
             theme.applyStyle(R.style.ThemeOverlay_FlipLauncher_NoAnimations, true)
